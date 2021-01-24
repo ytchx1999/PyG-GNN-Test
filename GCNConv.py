@@ -14,6 +14,7 @@ from torch_geometric.utils import add_remaining_self_loops
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 
 from torch_geometric.nn.inits import glorot, zeros
+import time
 
 """
 GCNConv层
@@ -181,12 +182,16 @@ class GCNConv(MessagePassing):
                 else:
                     edge_index = cache
 
+        st = time.time()
         x = torch.matmul(x, self.weight)
+        et = time.time()
+        message_time = et - st
 
         # propagate_type: (x: Tensor, edge_weight: OptTensor)
         # 返回结果和各阶段执行时间
-        out, message_time, aggregate_time, update_time = self.propagate(edge_index, x=x, edge_weight=edge_weight,
-                                                                        size=None)
+        out, mes_time, aggregate_time, update_time = self.propagate(edge_index, x=x, edge_weight=edge_weight,
+                                                                    size=None)
+        message_time += mes_time
 
         if self.bias is not None:
             out += self.bias

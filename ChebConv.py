@@ -9,6 +9,8 @@ from torch_geometric.utils import get_laplacian
 
 from torch_geometric.nn.inits import glorot, zeros
 
+import time
+
 
 class ChebConv(MessagePassing):
     r"""The chebyshev spectral graph convolutional operator from the
@@ -131,10 +133,13 @@ class ChebConv(MessagePassing):
 
         Tx_0 = x
         Tx_1 = x  # Dummy.
+        st = time.time()
         out = torch.matmul(Tx_0, self.weight[0])
+        et = time.time()
+        message_time = et - st
 
         # propagate_type: (x: Tensor, norm: Tensor)
-        message_time = 0
+        # message_time = 0
         aggregate_time = 0
         update_time = 0
         if self.weight.size(0) > 1:
@@ -143,7 +148,10 @@ class ChebConv(MessagePassing):
             aggregate_time += aggr_time
             update_time += up_time
 
+            st = time.time()
             out = out + torch.matmul(Tx_1, self.weight[1])
+            et = time.time()
+            message_time += et - st
 
         for k in range(2, self.weight.size(0)):
             Tx_2, mes_time, aggr_time, up_time = self.propagate(edge_index, x=Tx_1, norm=norm, size=None)
@@ -152,7 +160,10 @@ class ChebConv(MessagePassing):
             update_time += up_time
 
             Tx_2 = 2. * Tx_2 - Tx_0
+            st = time.time()
             out = out + torch.matmul(Tx_2, self.weight[k])
+            et = time.time()
+            message_time += et - st
             Tx_0, Tx_1 = Tx_1, Tx_2
 
         if self.bias is not None:

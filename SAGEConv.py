@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from torch_sparse import SparseTensor, matmul
 from MP import MessagePassing
 
+import time
+
 
 class SAGEConv(MessagePassing):
     r"""The GraphSAGE operator from the `"Inductive Representation Learning on
@@ -62,11 +64,17 @@ class SAGEConv(MessagePassing):
         # propagate_type: (x: OptPairTensor)
         # 返回结果和各阶段执行时间
         out, message_time, aggregate_time, update_time = self.propagate(edge_index, x=x, size=size)
+        st = time.time()
         out = self.lin_l(out)
+        et = time.time()
+        message_time += (et - st)
 
         x_r = x[1]
         if x_r is not None:
+            st = time.time()
             out += self.lin_r(x_r)
+            et = time.time()
+            message_time += (et - st)
 
         if self.normalize:
             out = F.normalize(out, p=2., dim=-1)
