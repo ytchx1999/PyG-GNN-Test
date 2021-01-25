@@ -149,9 +149,16 @@ class ChebConv(MessagePassing):
             update_time += up_time
 
             st = time.time()
-            out = out + torch.matmul(Tx_1, self.weight[1])
+            Z = torch.matmul(Tx_1, self.weight[1])
+            # out = out + torch.matmul(Tx_1, self.weight[1])
             et = time.time()
             message_time += et - st
+
+            st = time.time()
+            # Z = torch.matmul(Tx_1, self.weight[1])
+            out = out + Z
+            et = time.time()
+            aggregate_time += et - st
 
         for k in range(2, self.weight.size(0)):
             Tx_2, mes_time, aggr_time, up_time = self.propagate(edge_index, x=Tx_1, norm=norm, size=None)
@@ -160,10 +167,19 @@ class ChebConv(MessagePassing):
             update_time += up_time
 
             Tx_2 = 2. * Tx_2 - Tx_0
+
             st = time.time()
-            out = out + torch.matmul(Tx_2, self.weight[k])
+            Z = torch.matmul(Tx_2, self.weight[k])
+            # out = out + torch.matmul(Tx_2, self.weight[k])
             et = time.time()
             message_time += et - st
+
+            st = time.time()
+            # out = out + torch.matmul(Tx_2, self.weight[k])
+            out = out + Z
+            et = time.time()
+            message_time += et - st
+
             Tx_0, Tx_1 = Tx_1, Tx_2
 
         if self.bias is not None:

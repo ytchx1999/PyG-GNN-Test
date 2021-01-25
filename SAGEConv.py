@@ -74,7 +74,7 @@ class SAGEConv(MessagePassing):
             st = time.time()
             out += self.lin_r(x_r)
             et = time.time()
-            message_time += (et - st)
+            update_time += (et - st)
 
         if self.normalize:
             out = F.normalize(out, p=2., dim=-1)
