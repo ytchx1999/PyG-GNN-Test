@@ -11,6 +11,8 @@ import torch.optim as optim
 import numpy as np
 import time
 
+# from torch.utils.data import DataLoader
+
 """
 GraphSAGE的minibatch方法(包含采样)
 """
@@ -187,7 +189,7 @@ for epoch in range(1, 11):
     print(f'Train: {train_acc:.4f}, Val: {val_acc:.4f}, '
           f'Test: {test_acc:.4f}')
 
-print("Average message time:", np.mean(mes_times))
-print("Average aggregate time:", np.mean(aggr_times))
-print("Average update time:", np.mean(up_times))
-print("Average sample time:", np.mean(sample_times) + init_sample_time)
+print("Average message time:", 1000 * np.mean(mes_times), 'ms')
+print("Average aggregate time:", 1000 * np.mean(aggr_times), 'ms')
+print("Average update time:", 1000 * np.mean(up_times), 'ms')
+print("Average sample time:", (1000 * np.mean(sample_times) + init_sample_time), 'ms')

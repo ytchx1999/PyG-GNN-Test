@@ -196,10 +196,10 @@ def train():
         # print('Epoch {:03d} train_loss: {:.4f} train_acc: {:.4f} val_loss: {:.4f} val_acc: {:.4f}'.format(
         #     epoch, loss.item(), acc, val_loss, val_acc))
 
-    print("Average message time:", np.mean(mes_times))
-    print("Average aggregate time:", np.mean(aggr_times))
-    print("Average update time:", np.mean(up_times))
-    print("Average jk time:", np.mean(jk_times))
+    print("Average message time:", 1000 * np.mean(mes_times), 'ms')
+    print("Average aggregate time:", 1000 * np.mean(aggr_times), 'ms')
+    print("Average update time:", 1000 * np.mean(up_times), 'ms')
+    print("Average jk time:", 1000 * np.mean(jk_times), 'ms')
 
     test()
 
