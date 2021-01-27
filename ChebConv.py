@@ -136,10 +136,10 @@ class ChebConv(MessagePassing):
         st = time.time()
         out = torch.matmul(Tx_0, self.weight[0])
         et = time.time()
-        message_time = et - st
+        lin_time = et - st
 
         # propagate_type: (x: Tensor, norm: Tensor)
-        # message_time = 0
+        message_time = 0
         aggregate_time = 0
         update_time = 0
         if self.weight.size(0) > 1:
@@ -152,7 +152,7 @@ class ChebConv(MessagePassing):
             Z = torch.matmul(Tx_1, self.weight[1])
             # out = out + torch.matmul(Tx_1, self.weight[1])
             et = time.time()
-            message_time += et - st
+            lin_time += et - st
 
             st = time.time()
             # Z = torch.matmul(Tx_1, self.weight[1])
@@ -172,7 +172,7 @@ class ChebConv(MessagePassing):
             Z = torch.matmul(Tx_2, self.weight[k])
             # out = out + torch.matmul(Tx_2, self.weight[k])
             et = time.time()
-            message_time += et - st
+            lin_time += et - st
 
             st = time.time()
             # out = out + torch.matmul(Tx_2, self.weight[k])
@@ -185,7 +185,7 @@ class ChebConv(MessagePassing):
         if self.bias is not None:
             out += self.bias
 
-        return out, message_time, aggregate_time, update_time
+        return out, lin_time, message_time, aggregate_time, update_time
 
     def message(self, x_j, norm):
         return norm.view(-1, 1) * x_j

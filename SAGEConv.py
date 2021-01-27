@@ -67,7 +67,7 @@ class SAGEConv(MessagePassing):
         st = time.time()
         out = self.lin_l(out)
         et = time.time()
-        message_time += (et - st)
+        lin_time = (et - st)
 
         x_r = x[1]
         if x_r is not None:
@@ -79,7 +79,7 @@ class SAGEConv(MessagePassing):
         if self.normalize:
             out = F.normalize(out, p=2., dim=-1)
 
-        return out, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
+        return out, lin_time, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
 
     def message(self, x_j: Tensor) -> Tensor:
         return x_j

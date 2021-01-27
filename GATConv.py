@@ -12,6 +12,8 @@ from torch_geometric.utils import remove_self_loops, add_self_loops, softmax
 
 from torch_geometric.nn.inits import glorot, zeros
 
+import time
+
 
 class GATConv(MessagePassing):
     r"""The graph attentional operator from the `"Graph Attention Networks"
@@ -122,16 +124,30 @@ class GATConv(MessagePassing):
         alpha_r: OptTensor = None
         if isinstance(x, Tensor):
             assert x.dim() == 2, 'Static graphs not supported in `GATConv`.'
+
+            start_time = time.time()
             x_l = x_r = self.lin_l(x).view(-1, H, C)
+            end_time = time.time()
+            lin_time = end_time - start_time
+
             alpha_l = (x_l * self.att_l).sum(dim=-1)
             alpha_r = (x_r * self.att_r).sum(dim=-1)
         else:
             x_l, x_r = x[0], x[1]
             assert x[0].dim() == 2, 'Static graphs not supported in `GATConv`.'
+
+            start_time = time.time()
             x_l = self.lin_l(x_l).view(-1, H, C)
+            end_time = time.time()
+            lin_time = end_time - start_time
+
             alpha_l = (x_l * self.att_l).sum(dim=-1)
             if x_r is not None:
+                start_time = time.time()
                 x_r = self.lin_r(x_r).view(-1, H, C)
+                end_time = time.time()
+                lin_time += end_time - start_time
+
                 alpha_r = (x_r * self.att_r).sum(dim=-1)
 
         assert x_l is not None
@@ -168,11 +184,12 @@ class GATConv(MessagePassing):
         if isinstance(return_attention_weights, bool):
             assert alpha is not None
             if isinstance(edge_index, Tensor):
-                return out, message_time, aggregate_time, update_time, (edge_index, alpha)
+                return out, lin_time, message_time, aggregate_time, update_time, (edge_index, alpha)
             elif isinstance(edge_index, SparseTensor):
-                return out, message_time, aggregate_time, update_time, edge_index.set_value(alpha, layout='coo')
+                return out, lin_time, message_time, aggregate_time, update_time, edge_index.set_value(alpha,
+                                                                                                      layout='coo')
         else:
-            return out, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
+            return out, lin_time, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
 
     def message(self, x_j: Tensor, alpha_j: Tensor, alpha_i: OptTensor,
                 index: Tensor, ptr: OptTensor,

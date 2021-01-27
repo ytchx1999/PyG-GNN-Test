@@ -185,18 +185,18 @@ class GCNConv(MessagePassing):
         st = time.time()
         x = torch.matmul(x, self.weight)
         et = time.time()
-        message_time = et - st
+        lin_time = et - st
 
         # propagate_type: (x: Tensor, edge_weight: OptTensor)
         # 返回结果和各阶段执行时间
-        out, mes_time, aggregate_time, update_time = self.propagate(edge_index, x=x, edge_weight=edge_weight,
-                                                                    size=None)
-        message_time += mes_time
+        out, message_time, aggregate_time, update_time = self.propagate(edge_index, x=x, edge_weight=edge_weight,
+                                                                        size=None)
+        # message_time += mes_time
 
         if self.bias is not None:
             out += self.bias
 
-        return out, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
+        return out, lin_time, message_time, aggregate_time, update_time  # 返回结果和各阶段执行时间
 
     def message(self, x_j: Tensor, edge_weight: OptTensor) -> Tensor:
         if edge_weight is None:

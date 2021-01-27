@@ -1,6 +1,7 @@
 from torch_geometric.datasets import Planetoid
 import torch
 from torch_geometric.data import NeighborSampler
+# from NS import NeighborSampler
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -30,6 +31,7 @@ end_time = time.time()
 init_sample_time = end_time - start_time
 # print('NeighborSampler time:{}'.format(end_time - start_time))
 
+
 subgraph_loader = NeighborSampler(dataset_cora[0].edge_index, node_idx=None, sizes=[-1],
                                   batch_size=1024, shuffle=False,
                                   num_workers=12)
@@ -53,20 +55,22 @@ class SAGENet(torch.nn.Module):
         # Target nodes are also included in the source nodes so that one can
         # easily apply skip-connections or add self-loops.
 
+        lin_times = 0
         mes_times = 0
         aggr_times = 0
         up_times = 0
 
         for i, (edge_index, _, size) in enumerate(adjs):
             x_target = x[:size[1]]  # Target nodes are always placed first.
-            x, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
+            x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
+            lin_times += linear_time
             mes_times += message_time
             aggr_times += aggregate_time
             up_times += update_time
             if i != self.num_layers - 1:
                 x = F.relu(x)
                 x = F.dropout(x, p=0.5, training=self.training)
-        return x.log_softmax(dim=-1), mes_times, aggr_times, up_times
+        return x.log_softmax(dim=-1), lin_times, mes_times, aggr_times, up_times
 
     def inference(self, x_all):
         # pbar = tqdm(total=x_all.size(0) * self.num_layers)
@@ -81,7 +85,7 @@ class SAGENet(torch.nn.Module):
                 edge_index, _, size = adj.to(device)
                 x = x_all[n_id].to(device)
                 x_target = x[:size[1]]
-                x, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
+                x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
                 if i != self.num_layers - 1:
                     x = F.relu(x)
                 xs.append(x.cpu())
@@ -116,6 +120,8 @@ def train(epoch):
 
     # pbar = tqdm(total=int(data.train_mask.sum()))
     # pbar.set_description(f'Epoch {epoch:02d}')
+
+    total_lin_time = 0
     total_mes_time = 0
     total_aggr_time = 0
     total_up_time = 0
@@ -132,8 +138,9 @@ def train(epoch):
         adjs = [adj.to(device) for adj in adjs]
 
         optimizer.zero_grad()
-        out, mes_time, aggr_time, up_time = model(x[n_id], adjs)
+        out, lin_time, mes_time, aggr_time, up_time = model(x[n_id], adjs)
 
+        total_lin_time += lin_time
         total_mes_time += mes_time
         total_aggr_time += aggr_time
         total_up_time += up_time
@@ -152,7 +159,7 @@ def train(epoch):
     loss = total_loss / len(train_loader)
     approx_acc = total_correct / int(data.train_mask.sum())
 
-    return loss, approx_acc, total_mes_time, total_aggr_time, total_up_time, total_sample_time
+    return loss, approx_acc, total_lin_time, total_mes_time, total_aggr_time, total_up_time, total_sample_time
 
 
 @torch.no_grad()
@@ -171,13 +178,15 @@ def test():
     return results
 
 
+lin_times = []
 mes_times = []
 aggr_times = []
 up_times = []
 sample_times = []
 for epoch in range(1, 11):
-    loss, acc, mes_time, aggr_time, up_time, sample_time = train(epoch)
+    loss, acc, lin_time, mes_time, aggr_time, up_time, sample_time = train(epoch)
 
+    lin_times.append(lin_time)
     mes_times.append(mes_time)
     aggr_times.append(aggr_time)
     up_times.append(up_time)
@@ -189,6 +198,7 @@ for epoch in range(1, 11):
     print(f'Train: {train_acc:.4f}, Val: {val_acc:.4f}, '
           f'Test: {test_acc:.4f}')
 
+print("Average linear time:", 1000 * np.mean(lin_times), 'ms')
 print("Average message time:", 1000 * np.mean(mes_times), 'ms')
 print("Average aggregate time:", 1000 * np.mean(aggr_times), 'ms')
 print("Average update time:", 1000 * np.mean(up_times), 'ms')
