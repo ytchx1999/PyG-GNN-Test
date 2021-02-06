@@ -1,0 +1,2 @@
+reddit filter=lfs diff=lfs merge=lfs -text
+reddit/* filter=lfs diff=lfs merge=lfs -text

@@ -11,6 +11,8 @@
 + GraphSAGE（minibatch）
 + JK-Nets
 
+Reddit、ogbn-arxiv、ogbn-products数据集比较大，就不上传了。执行模型代码可以自动下载缓存到本地。
+
 ### 文件说明
 
 | 文件/文件夹  | 说明                                 |
