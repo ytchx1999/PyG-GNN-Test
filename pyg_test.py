@@ -1,4 +1,5 @@
 from torch_geometric.datasets import Planetoid
+from torch_geometric.datasets import Reddit
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,12 +17,11 @@ from ChebConv import ChebConv
 # from torch_geometric.nn import ChebConv
 
 """
-ChebNet、GCN、GAT模型
+可选择的模型：ChebNet、GCN、GAT模型
+可选择的数据集：Cora、Citeseer、Pubmed
 """
 
 dataset = Planetoid(root='./cora/', name='Cora')
-# dataset = Planetoid(root='./cora/', name='Cora', split='random',
-#                          num_train_per_class=232, num_val=542, num_test=542)
 # dataset = Planetoid(root='./citeseer',name='Citeseer')
 # dataset = Planetoid(root='./pubmed/', name='Pubmed')
 print(dataset)
@@ -29,10 +29,10 @@ print(dataset)
 
 # baseline：GCN模型（2层）
 class ChebNet(nn.Module):
-    def __init__(self, dataset):
+    def __init__(self, dataset, hidden_dim=16):
         super(ChebNet, self).__init__()
-        self.conv1 = ChebConv(dataset.num_node_features, 16, K=2)
-        self.conv2 = ChebConv(16, dataset.num_classes, K=2)
+        self.conv1 = ChebConv(dataset.num_node_features, hidden_dim, K=2)
+        self.conv2 = ChebConv(hidden_dim, dataset.num_classes, K=2)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -63,10 +63,10 @@ class ChebNet(nn.Module):
 
 # baseline：GCN模型（2层）
 class GCNNet(nn.Module):
-    def __init__(self, dataset):
+    def __init__(self, dataset, hidden_dim=16):
         super(GCNNet, self).__init__()
-        self.conv1 = GCNConv(dataset.num_node_features, 16)
-        self.conv2 = GCNConv(16, dataset.num_classes)
+        self.conv1 = GCNConv(dataset.num_node_features, hidden_dim)
+        self.conv2 = GCNConv(hidden_dim, dataset.num_classes)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -97,10 +97,10 @@ class GCNNet(nn.Module):
 
 # baseline：GAT模型（2层）
 class GATNet(nn.Module):
-    def __init__(self, dataset):
+    def __init__(self, dataset, hidden_dim=8):
         super(GATNet, self).__init__()
-        self.conv1 = GATConv(dataset.num_features, 8, heads=8, dropout=0.6)
-        self.conv2 = GATConv(8 * 8, dataset.num_classes, dropout=0.6)
+        self.conv1 = GATConv(dataset.num_features, hidden_dim, heads=8, dropout=0.6)
+        self.conv2 = GATConv(8 * hidden_dim, dataset.num_classes, dropout=0.6)
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
@@ -128,56 +128,9 @@ class GATNet(nn.Module):
         return F.log_softmax(x, dim=1), lin_times, mes_times, aggr_times, up_times
 
 
-# # JK-Nets（6层）
-# class JKNet(nn.Module):
-#     def __init__(self, dataset, mode='max', num_layers=6, hidden=16):
-#         super(JKNet, self).__init__()
-#         self.num_layers = num_layers
-#         self.mode = mode
-#
-#         self.conv0 = GCNConv(dataset.num_node_features, hidden)
-#         self.dropout0 = nn.Dropout(p=0.5)
-#
-#         for i in range(1, self.num_layers):
-#             setattr(self, 'conv{}'.format(i), GCNConv(hidden, hidden))
-#             setattr(self, 'dropout{}'.format(i), nn.Dropout(p=0.5))
-#
-#         self.jk = JumpingKnowledge(mode=mode)
-#         if mode == 'max':
-#             self.fc = nn.Linear(hidden, dataset.num_classes)
-#         elif mode == 'cat':
-#             self.fc = nn.Linear(num_layers * hidden, dataset.num_classes)
-#
-#     def forward(self, data):
-#         x, edge_index = data.x, data.edge_index
-#         mes_times = 0
-#         aggr_times = 0
-#         up_times = 0
-#
-#         layer_out = []  # 保存每一层的结果
-#         for i in range(self.num_layers):
-#             conv = getattr(self, 'conv{}'.format(i))
-#             dropout = getattr(self, 'dropout{}'.format(i))
-#             x, message_time, aggregate_time, update_time = conv(x, edge_index)
-#             mes_times += message_time
-#             aggr_times += aggregate_time
-#             up_times += update_time
-#
-#             x = dropout(F.relu(x))
-#             layer_out.append(x)
-#
-#         h = self.jk(layer_out)  # JK层
-#
-#         h = self.fc(h)
-#         h = F.log_softmax(h, dim=1)
-#
-#         return h, mes_times, aggr_times, up_times
-
-
-# model = JKNet(dataset, mode='max')  # max和cat两种模式可供选择
-# model = ChebNet(dataset)
-# model = GCNNet(dataset)
-model = GATNet(dataset)
+# model = ChebNet(dataset, hidden_dim=16)
+# model = GCNNet(dataset, hidden_dim=16)
+model = GATNet(dataset, hidden_dim=8)
 print(model)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

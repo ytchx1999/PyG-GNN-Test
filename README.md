@@ -14,10 +14,13 @@
 ### 文件说明
 
 | 文件/文件夹  | 说明                                 |
-| :----------- | ------------------------------------ |
-| pyg_test.py  | ChebNet、GCN、GAT模型的实验结果      |
-| pyg_test2.py | GraphSAGE模型（minibatch）的实验结果 |
-| pyg_test3.py | JK-Nets模型的实验结果                |
+| ----------- | ------------------------------------ |
+| pyg_test.py  | 模型：ChebNet、GCN、GAT；数据集：Cora、Citeseer、Pubmed    |
+| pyg_test2.py | GraphSAGE的minibatch方法(包含采样)；数据集：Cora、Citeseer、Pubmed、Reddit |
+| pyg_test3.py | JK-Nets模型；数据集：Cora、Citeseer、Pubmed               |
+|     pyg_test4.py   | GAT的minibatch方法(包含采样)；数据集：Reddit |
+| pyg_test5.py | GraphSAGE的minibatch方法(包含采样)；数据集：ogbn-arxiv、ogbn-products |
+| pyg_test6.py | GAT的minibatch方法(包含采样)；数据集：ogbn-arxiv、ogbn-products |
 | MP.py        | 加入计时机制的MessagePassing类       |
 | ChebConv.py  | 修改后的ChebConv层的定义             |
 | GCNConv.py   | 修改后的GCNConv层的定义              |

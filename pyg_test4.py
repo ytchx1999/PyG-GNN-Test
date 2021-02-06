@@ -6,9 +6,10 @@ from torch_geometric.data import NeighborSampler
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
+# from torch_geometric.nn import GCNConv
 from SAGEConv import SAGEConv
 from tqdm import tqdm
+from GATConv import GATConv
 import torch.optim as optim
 import numpy as np
 import time
@@ -16,8 +17,8 @@ import time
 # from torch.utils.data import DataLoader
 
 """
-GraphSAGE的minibatch方法(包含采样)
-可选择的数据集：Cora、Citeseer、Pubmed、Reddit
+GAT的minibatch方法(包含采样)
+可选择的数据集：Reddit
 """
 
 # dataset = Planetoid(root='./cora/', name='Cora')
@@ -47,15 +48,15 @@ subgraph_loader = NeighborSampler(dataset[0].edge_index, node_idx=None, sizes=[-
                                   num_workers=12)
 
 
-class SAGENet(torch.nn.Module):
+class GATNet(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
-        super(SAGENet, self).__init__()
+        super(GATNet, self).__init__()
 
         self.num_layers = 2
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(SAGEConv(in_channels, hidden_channels))
-        self.convs.append(SAGEConv(hidden_channels, out_channels))
+        self.convs.append(GATConv(in_channels, hidden_channels, dropout=0.6))
+        self.convs.append(GATConv(hidden_channels, out_channels, dropout=0.6))
 
     def forward(self, x, adjs):
         # `train_loader` computes the k-hop neighborhood of a batch of nodes,
@@ -113,7 +114,7 @@ class SAGENet(torch.nn.Module):
 # model = SAGENet(dataset.num_features, 16, dataset.num_classes)
 
 # Reddit
-model = SAGENet(dataset.num_features, 256, dataset.num_classes)
+model = GATNet(dataset.num_features, 256, dataset.num_classes)
 print(model)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

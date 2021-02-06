@@ -1,4 +1,5 @@
 from torch_geometric.datasets import Planetoid
+from torch_geometric.datasets import Reddit
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,11 +16,10 @@ import time
 
 """
 JK-Nets模型
+可选择的数据集：Cora、Citeseer、Pubmed
 """
 
 dataset = Planetoid(root='./cora/', name='Cora')
-# dataset = Planetoid(root='./cora/', name='Cora', split='random',
-#                          num_train_per_class=232, num_val=542, num_test=542)
 # dataset = Planetoid(root='./citeseer',name='Citeseer')
 # dataset = Planetoid(root='./pubmed/', name='Pubmed')
 print(dataset)
@@ -151,21 +151,6 @@ print(data)
 
 criterion = nn.NLLLoss().to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=5e-4)
-
-
-# 按照60%、20%、20%划分train、valid、test
-# if dataset.name == 'Cora':
-#     data.train_mask[:1624] = True
-#     data.train_mask[1624:2166] = True
-#     data.train_mask[2166:] = True
-# elif dataset.name == 'Citeseer':
-#     data.train_mask[:1995] = True
-#     data.train_mask[1995:2661] = True
-#     data.train_mask[2661:] = True
-# elif dataset.name == 'Pubmed':
-#     data.train_mask[:11829] = True
-#     data.train_mask[11829:15773] = True
-#     data.train_mask[15773:] = True
 
 
 def train():

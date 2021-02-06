@@ -8,24 +8,35 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 from SAGEConv import SAGEConv
+from GATConv import GATConv
 from tqdm import tqdm
 import torch.optim as optim
 import numpy as np
 import time
 
+from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
+
 # from torch.utils.data import DataLoader
 
 """
-GraphSAGE的minibatch方法(包含采样)
-可选择的数据集：Cora、Citeseer、Pubmed、Reddit
+GAT的minibatch方法(包含采样)
+可选择的数据集：ogbn-arxiv、ogbn-products
 """
 
 # dataset = Planetoid(root='./cora/', name='Cora')
 # dataset = Planetoid(root='./citeseer',name='Citeseer')
 # dataset = Planetoid(root='./pubmed/',name='Pubmed')
-dataset = Reddit(root='./reddit/')
+# dataset = Reddit(root='./reddit/')
+# dataset = PygNodePropPredDataset('ogbn-arxiv', root='./arxiv/')
+dataset = PygNodePropPredDataset('ogbn-products', './products/')
 print(dataset)
 
+split_idx = dataset.get_idx_split()
+# evaluator = Evaluator(name='ogbn-arxiv')
+evaluator = Evaluator(name='ogbn-products')
+data = dataset[0]
+
+train_idx = split_idx['train']
 start_time = time.time()
 # cora
 # train_loader = NeighborSampler(dataset[0].edge_index, node_idx=dataset[0].train_mask,
@@ -33,29 +44,52 @@ start_time = time.time()
 #                                num_workers=12)
 
 # Reddit
-train_loader = NeighborSampler(dataset[0].edge_index, node_idx=dataset[0].train_mask,
-                               sizes=[25, 10], batch_size=1024, shuffle=True,
-                               num_workers=12)
+# train_loader = NeighborSampler(dataset[0].edge_index, node_idx=dataset[0].train_mask,
+#                                sizes=[25, 10], batch_size=1024, shuffle=True,
+#                                num_workers=12)
+
+# ogb
+train_loader = NeighborSampler(data.edge_index, node_idx=train_idx,
+                               sizes=[15, 10, 5], batch_size=1024,
+                               shuffle=True, num_workers=12)
 
 end_time = time.time()
 init_sample_time = end_time - start_time
 # print('NeighborSampler time:{}'.format(end_time - start_time))
 
+# cora reddit
+# subgraph_loader = NeighborSampler(dataset[0].edge_index, node_idx=None, sizes=[-1],
+#                                   batch_size=1024, shuffle=False,
+#                                   num_workers=12)
 
-subgraph_loader = NeighborSampler(dataset[0].edge_index, node_idx=None, sizes=[-1],
-                                  batch_size=1024, shuffle=False,
+subgraph_loader = NeighborSampler(data.edge_index, node_idx=None, sizes=[-1],
+                                  batch_size=4096, shuffle=False,
                                   num_workers=12)
 
 
-class SAGENet(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
-        super(SAGENet, self).__init__()
+class GATNet(torch.nn.Module):
+    # def __init__(self, in_channels, hidden_channels, out_channels):
+    #     super(SAGENet, self).__init__()
+    #
+    #     self.num_layers = 2
+    #
+    #     self.convs = torch.nn.ModuleList()
+    #     self.convs.append(SAGEConv(in_channels, hidden_channels))
+    #     self.convs.append(SAGEConv(hidden_channels, out_channels))
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
+        super(GATNet, self).__init__()
 
-        self.num_layers = 2
+        self.num_layers = num_layers
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(SAGEConv(in_channels, hidden_channels))
-        self.convs.append(SAGEConv(hidden_channels, out_channels))
+        self.convs.append(GATConv(in_channels, hidden_channels))
+        for _ in range(num_layers - 2):
+            self.convs.append(GATConv(hidden_channels, hidden_channels))
+        self.convs.append(GATConv(hidden_channels, out_channels))
+
+    def reset_parameters(self):
+        for conv in self.convs:
+            conv.reset_parameters()
 
     def forward(self, x, adjs):
         # `train_loader` computes the k-hop neighborhood of a batch of nodes,
@@ -113,7 +147,8 @@ class SAGENet(torch.nn.Module):
 # model = SAGENet(dataset.num_features, 16, dataset.num_classes)
 
 # Reddit
-model = SAGENet(dataset.num_features, 256, dataset.num_classes)
+# model = SAGENet(dataset.num_features, 256, dataset.num_classes)
+model = GATNet(dataset.num_features, 256, dataset.num_classes, num_layers=3)
 print(model)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -126,7 +161,7 @@ x = data.x.to(device)
 y = data.y.squeeze().to(device)
 
 criterion = nn.NLLLoss().to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
+optimizer = optim.Adam(model.parameters(), lr=0.003, weight_decay=5e-4)
 
 
 def train(epoch):
@@ -171,10 +206,25 @@ def train(epoch):
     # pbar.close()
 
     loss = total_loss / len(train_loader)
-    approx_acc = total_correct / int(data.train_mask.sum())
+    approx_acc = total_correct / int(train_idx.size(0))
 
     return loss, approx_acc, total_lin_time, total_mes_time, total_aggr_time, total_up_time, total_sample_time
 
+
+# @torch.no_grad()
+# def test():
+#     model.eval()
+#
+#     out = model.inference(x)
+#
+#     y_true = y.cpu().unsqueeze(-1)
+#     y_pred = out.argmax(dim=-1, keepdim=True)
+#
+#     results = []
+#     for mask in [data.train_mask, data.val_mask, data.test_mask]:
+#         results += [int(y_pred[mask].eq(y_true[mask]).sum()) / int(mask.sum())]
+#
+#     return results
 
 @torch.no_grad()
 def test():
@@ -185,11 +235,20 @@ def test():
     y_true = y.cpu().unsqueeze(-1)
     y_pred = out.argmax(dim=-1, keepdim=True)
 
-    results = []
-    for mask in [data.train_mask, data.val_mask, data.test_mask]:
-        results += [int(y_pred[mask].eq(y_true[mask]).sum()) / int(mask.sum())]
+    train_acc = evaluator.eval({
+        'y_true': y_true[split_idx['train']],
+        'y_pred': y_pred[split_idx['train']],
+    })['acc']
+    val_acc = evaluator.eval({
+        'y_true': y_true[split_idx['valid']],
+        'y_pred': y_pred[split_idx['valid']],
+    })['acc']
+    test_acc = evaluator.eval({
+        'y_true': y_true[split_idx['test']],
+        'y_pred': y_pred[split_idx['test']],
+    })['acc']
 
-    return results
+    return train_acc, val_acc, test_acc
 
 
 lin_times = []
