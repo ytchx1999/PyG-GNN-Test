@@ -1,7 +1,10 @@
 # PyG-GNN-Test
-使用PyTorch Geometric对GNN典型模型的各阶段执行时间进行复现、测试和分析。
+GNN负载研究：使用PyTorch Geometric对GNN典型模型的各阶段执行时间进行复现、测试和分析。
 
-[CSDN博客：GNN典型模型的各阶段执行时间与算子分析](https://blog.csdn.net/weixin_41650348/article/details/113090317)
+实验结果与分析：
+
++ [CSDN博客：GNN典型模型的各阶段执行时间与算子分析](https://blog.csdn.net/weixin_41650348/article/details/113090317)
++ [CSDN博客：GNN各阶段执行时间实验【Citeseer、Pubmed、Reddit、OGB数据集】](https://blog.csdn.net/weixin_41650348/article/details/113709290)
 
 分析的模型包括（后续模型再进行补充）：
 
@@ -10,6 +13,15 @@
 + GAT
 + GraphSAGE（minibatch）
 + JK-Nets
+
+分析的数据集包括：
+
++ Cora
++ Citeseer
++ Pubmed
++ Reddit
++ ogbn-arxiv
++ ogbn-products
 
 Reddit、ogbn-arxiv、ogbn-products数据集比较大，就不上传了。执行模型代码可以自动下载缓存到本地。
 
