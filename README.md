@@ -25,6 +25,8 @@ GNN负载研究：使用PyTorch Geometric对GNN典型模型的各阶段执行时
 
 Reddit、ogbn-arxiv、ogbn-products数据集比较大，就不上传了。执行模型代码可以自动下载缓存到本地。
 
+==需要注意，除了pyg_test7.py和pyg_test8.py使用的是SpMM方法，其他均使用GS方法！==
+
 ### 文件说明
 
 | 文件/文件夹  | 说明                                 |
@@ -35,6 +37,8 @@ Reddit、ogbn-arxiv、ogbn-products数据集比较大，就不上传了。执行
 |     pyg_test4.py   | GAT的minibatch方法(包含采样)；数据集：Reddit |
 | pyg_test5.py | GraphSAGE的minibatch方法(包含采样)；数据集：ogbn-arxiv、ogbn-products |
 | pyg_test6.py | GAT的minibatch方法(包含采样)；数据集：ogbn-arxiv、ogbn-products |
+| pyg_test7.py | GCN、GAT模型（SpMM方法）；数据集：ogbn-arxiv、ogbn-products |
+| pyg_test8.py | GraphSAGE的minibatch方法(SpMM方法)；数据集：ogbn-arxiv、ogbn-products |
 | MP.py        | 加入计时机制的MessagePassing类       |
 | ChebConv.py  | 修改后的ChebConv层的定义             |
 | GCNConv.py   | 修改后的GCNConv层的定义              |

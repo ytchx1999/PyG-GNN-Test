@@ -20,6 +20,7 @@ from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
 """
 GraphSAGE的minibatch方法(包含采样)
 可选择的数据集：ogbn-arxiv、ogbn-products
+使用方法：GS方法
 """
 
 # dataset = Planetoid(root='./cora/', name='Cora')

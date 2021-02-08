@@ -223,6 +223,7 @@ class MessagePassing(torch.nn.Module):
         """
         size = self.__check_input__(edge_index, size)
 
+        # 对稀疏矩阵进行操作
         # Run "fused" message and aggregation (if applicable).
         if (isinstance(edge_index, SparseTensor) and self.fuse
                 and not self.__explain__):
@@ -231,10 +232,20 @@ class MessagePassing(torch.nn.Module):
 
             msg_aggr_kwargs = self.inspector.distribute(
                 'message_and_aggregate', coll_dict)
+            start_time = time.time()
             out = self.message_and_aggregate(edge_index, **msg_aggr_kwargs)
+            end_time = time.time()
+            message_time = end_time - start_time
+
+            aggregate_time = 0  # 因为Message和Aggregate阶段合并了，为了统一形式
 
             update_kwargs = self.inspector.distribute('update', coll_dict)
-            return self.update(out, **update_kwargs)
+            start_time = time.time()
+            out = self.update(out, **update_kwargs)
+            end_time = time.time()
+            update_time = end_time - start_time
+
+            return out, message_time, aggregate_time, update_time  # 返回结果和执行时间
 
         # 对于边表的操作
         # Otherwise, run both functions in separation.

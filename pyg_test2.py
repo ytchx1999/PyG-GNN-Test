@@ -18,6 +18,7 @@ import time
 """
 GraphSAGE的minibatch方法(包含采样)
 可选择的数据集：Cora、Citeseer、Pubmed、Reddit
+使用方法：GS方法
 """
 
 # dataset = Planetoid(root='./cora/', name='Cora')

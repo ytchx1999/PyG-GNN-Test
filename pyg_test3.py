@@ -17,6 +17,7 @@ import time
 """
 JK-Nets模型
 可选择的数据集：Cora、Citeseer、Pubmed
+使用方法：GS方法
 """
 
 dataset = Planetoid(root='./cora/', name='Cora')

@@ -8,49 +8,36 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
 from SAGEConv import SAGEConv
-from GATConv import GATConv
 from tqdm import tqdm
 import torch.optim as optim
 import numpy as np
 import time
 
 from ogb.nodeproppred import PygNodePropPredDataset, Evaluator
+import torch_geometric.transforms as T
 
 # from torch.utils.data import DataLoader
 
 """
-GAT的minibatch方法(包含采样)
+GraphSAGE的minibatch方法(包含采样)
 可选择的数据集：ogbn-arxiv、ogbn-products
-使用方法：GS方法
+使用方法：SpMM方法
 """
 
-# dataset = Planetoid(root='./cora/', name='Cora')
-# dataset = Planetoid(root='./citeseer',name='Citeseer')
-# dataset = Planetoid(root='./pubmed/',name='Pubmed')
-# dataset = Reddit(root='./reddit/')
-# dataset = PygNodePropPredDataset('ogbn-arxiv', root='./arxiv/')
-dataset = PygNodePropPredDataset('ogbn-products', './products/')
+dataset = PygNodePropPredDataset('ogbn-arxiv', root='./arxiv/', transform=T.ToSparseTensor())
+# dataset = PygNodePropPredDataset('ogbn-products', './products/', transform=T.ToSparseTensor())
 print(dataset)
 
 split_idx = dataset.get_idx_split()
-# evaluator = Evaluator(name='ogbn-arxiv')
-evaluator = Evaluator(name='ogbn-products')
+evaluator = Evaluator(name='ogbn-arxiv')
+# evaluator = Evaluator(name='ogbn-products')
 data = dataset[0]
 
 train_idx = split_idx['train']
 start_time = time.time()
-# cora
-# train_loader = NeighborSampler(dataset[0].edge_index, node_idx=dataset[0].train_mask,
-#                                sizes=[10, 10], batch_size=16, shuffle=True,
-#                                num_workers=12)
-
-# Reddit
-# train_loader = NeighborSampler(dataset[0].edge_index, node_idx=dataset[0].train_mask,
-#                                sizes=[25, 10], batch_size=1024, shuffle=True,
-#                                num_workers=12)
 
 # ogb
-train_loader = NeighborSampler(data.edge_index, node_idx=train_idx,
+train_loader = NeighborSampler(data.adj_t, node_idx=train_idx,
                                sizes=[15, 10, 5], batch_size=1024,
                                shuffle=True, num_workers=12)
 
@@ -58,17 +45,13 @@ end_time = time.time()
 init_sample_time = end_time - start_time
 # print('NeighborSampler time:{}'.format(end_time - start_time))
 
-# cora reddit
-# subgraph_loader = NeighborSampler(dataset[0].edge_index, node_idx=None, sizes=[-1],
-#                                   batch_size=1024, shuffle=False,
-#                                   num_workers=12)
 
-subgraph_loader = NeighborSampler(data.edge_index, node_idx=None, sizes=[-1],
+subgraph_loader = NeighborSampler(data.adj_t, node_idx=None, sizes=[-1],
                                   batch_size=4096, shuffle=False,
                                   num_workers=12)
 
 
-class GATNet(torch.nn.Module):
+class SAGENet(torch.nn.Module):
     # def __init__(self, in_channels, hidden_channels, out_channels):
     #     super(SAGENet, self).__init__()
     #
@@ -77,16 +60,17 @@ class GATNet(torch.nn.Module):
     #     self.convs = torch.nn.ModuleList()
     #     self.convs.append(SAGEConv(in_channels, hidden_channels))
     #     self.convs.append(SAGEConv(hidden_channels, out_channels))
+
     def __init__(self, in_channels, hidden_channels, out_channels, num_layers):
-        super(GATNet, self).__init__()
+        super(SAGENet, self).__init__()
 
         self.num_layers = num_layers
 
         self.convs = torch.nn.ModuleList()
-        self.convs.append(GATConv(in_channels, hidden_channels))
+        self.convs.append(SAGEConv(in_channels, hidden_channels))
         for _ in range(num_layers - 2):
-            self.convs.append(GATConv(hidden_channels, hidden_channels))
-        self.convs.append(GATConv(hidden_channels, out_channels))
+            self.convs.append(SAGEConv(hidden_channels, hidden_channels))
+        self.convs.append(SAGEConv(hidden_channels, out_channels))
 
     def reset_parameters(self):
         for conv in self.convs:
@@ -105,9 +89,9 @@ class GATNet(torch.nn.Module):
         aggr_times = 0
         up_times = 0
 
-        for i, (edge_index, _, size) in enumerate(adjs):
+        for i, (adj_t, _, size) in enumerate(adjs):
             x_target = x[:size[1]]  # Target nodes are always placed first.
-            x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
+            x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), adj_t)
             lin_times += linear_time
             mes_times += message_time
             aggr_times += aggregate_time
@@ -127,10 +111,10 @@ class GATNet(torch.nn.Module):
         for i in range(self.num_layers):
             xs = []
             for batch_size, n_id, adj in subgraph_loader:
-                edge_index, _, size = adj.to(device)
+                adj_t, _, size = adj.to(device)
                 x = x_all[n_id].to(device)
                 x_target = x[:size[1]]
-                x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), edge_index)
+                x, linear_time, message_time, aggregate_time, update_time = self.convs[i]((x, x_target), adj_t)
                 if i != self.num_layers - 1:
                     x = F.relu(x)
                 xs.append(x.cpu())
@@ -149,7 +133,7 @@ class GATNet(torch.nn.Module):
 
 # Reddit
 # model = SAGENet(dataset.num_features, 256, dataset.num_classes)
-model = GATNet(dataset.num_features, 256, dataset.num_classes, num_layers=3)
+model = SAGENet(dataset.num_features, 256, dataset.num_classes, num_layers=3)
 print(model)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -212,21 +196,6 @@ def train(epoch):
     return loss, approx_acc, total_lin_time, total_mes_time, total_aggr_time, total_up_time, total_sample_time
 
 
-# @torch.no_grad()
-# def test():
-#     model.eval()
-#
-#     out = model.inference(x)
-#
-#     y_true = y.cpu().unsqueeze(-1)
-#     y_pred = out.argmax(dim=-1, keepdim=True)
-#
-#     results = []
-#     for mask in [data.train_mask, data.val_mask, data.test_mask]:
-#         results += [int(y_pred[mask].eq(y_true[mask]).sum()) / int(mask.sum())]
-#
-#     return results
-
 @torch.no_grad()
 def test():
     model.eval()
@@ -273,7 +242,7 @@ for epoch in range(1, 11):
           f'Test: {test_acc:.4f}')
 
 print("Average linear time:", 1000 * np.mean(lin_times), 'ms')
-print("Average message time:", 1000 * np.mean(mes_times), 'ms')
-print("Average aggregate time:", 1000 * np.mean(aggr_times), 'ms')
+print("Average message+aggregate time:", 1000 * np.mean(mes_times), 'ms')
+# print("Average aggregate time:", 1000 * np.mean(aggr_times), 'ms')
 print("Average update time:", 1000 * np.mean(up_times), 'ms')
 print("Average sample time:", (1000 * np.mean(sample_times) + init_sample_time), 'ms')

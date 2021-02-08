@@ -19,6 +19,7 @@ from ChebConv import ChebConv
 """
 可选择的模型：ChebNet、GCN、GAT模型
 可选择的数据集：Cora、Citeseer、Pubmed
+使用方法：GS方法
 """
 
 dataset = Planetoid(root='./cora/', name='Cora')
